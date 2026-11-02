@@ -456,6 +456,7 @@ GM.dod=function(ct){ct.innerHTML='<div class="gi2"><div>Счёт: <span class="v
 GM.min=function(ct){
   ct.innerHTML='<div class="gi2"><div>Мины: <span class="v" id="mn">10</span></div><div>Флаги: <span class="v" id="mf">0</span></div></div><div class="ms" id="msb"></div><button class="gb" id="mnr">🔄 Заново</button>';
   var R=9,C=9,M=10,be=document.getElementById('msb'),bd,ov,fl,startTime;
+  
   function rs(){
     bd=Array(R).fill().map(function(){return Array(C).fill(0)});
     ov=false;fl=0;startTime=Date.now();
@@ -475,6 +476,7 @@ GM.min=function(ct){
     });
     rn();
   }
+  
   function rn(){
     be.innerHTML='';
     be.style.gridTemplateColumns='repeat('+C+',30px)';
@@ -483,34 +485,45 @@ GM.min=function(ct){
         var d=document.createElement('div');
         d.dataset.r=r;
         d.dataset.c=c;
-        // ИСПРАВЛЕНИЕ: читаем координаты из dataset, а не из замыкания цикла
+        
+        // Desktop click (открытие)
         d.onclick=function(){
           var row=parseInt(this.dataset.r);
           var col=parseInt(this.dataset.c);
           op(row,col);
         };
+        
+        // Desktop right click (флаг)
         d.oncontextmenu=function(e){
           e.preventDefault();
           var row=parseInt(this.dataset.r);
           var col=parseInt(this.dataset.c);
           fg(row,col);
         };
-        var start=function(e){
-          e.preventDefault();
+        
+        // Mobile touch (исправлено: passive:true позволяет сработать click после короткого тапа)
+        var touchTimer;
+        d.addEventListener('touchstart', function(e) {
           var row=parseInt(this.dataset.r);
           var col=parseInt(this.dataset.c);
-          var self=this;
-          self.lt=setTimeout(function(){fg(row,col)},500);
-        };
-        var end=function(e){
-          clearTimeout(this.lt);
-        };
-        d.addEventListener('touchstart',start);
-        d.addEventListener('touchend',end);
+          touchTimer = setTimeout(function(){
+            fg(row,col);
+          }, 500);
+        }, {passive: true});
+        
+        d.addEventListener('touchend', function(e) {
+          clearTimeout(touchTimer);
+        });
+        
+        d.addEventListener('touchmove', function(e) {
+          clearTimeout(touchTimer);
+        }, {passive: true});
+        
         be.appendChild(d);
       }
     }
   }
+  
   function op(r,c){
     if(ov)return;
     var d=be.children[r*C+c];
@@ -533,6 +546,7 @@ GM.min=function(ct){
     }
     chk();
   }
+  
   function fg(r,c){
     if(ov)return;
     var d=be.children[r*C+c];
@@ -544,6 +558,7 @@ GM.min=function(ct){
     }
     document.getElementById('mf').textContent=fl;
   }
+  
   function chk(){
     var op2=0;
     for(var r=0;r<R;r++)for(var c=0;c<C;c++)if(be.children[r*C+c].classList.contains('o'))op2++;
@@ -554,6 +569,7 @@ GM.min=function(ct){
       window.conf();window.showModal('🏆 Победа!','Время: '+time+'с');
     }
   }
+  
   document.getElementById('mnr').onclick=rs;
   rs();
 };
