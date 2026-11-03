@@ -183,7 +183,7 @@ canvas.gc{background:#0a0a1e;border:2px solid #4facfe;border-radius:12px;max-wid
 .co div:hover{transform:scale(1.12)}
 .rx{width:100%;max-width:350px;height:240px;margin:15px auto;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:1.3em;font-weight:bold;cursor:pointer;user-select:none;transition:all .3s}
 .ms{display:grid;gap:2px;justify-content:center;margin:15px auto;width:fit-content}
-.ms div{width:30px;height:30px;background:rgba(79,172,254,.3);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:bold;font-size:.85em;border-radius:4px;transition:all .2s}
+.ms div{width:30px;height:30px;background:rgba(79,172,254,.3);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:bold;font-size:.85em;border-radius:4px;transition:all .2s;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .ms div:hover{background:rgba(79,172,254,.5)}
 .ms div.o{background:rgba(0,0,0,.3);cursor:default}
 .ms div.f{background:rgba(255,190,11,.3)}
@@ -486,38 +486,62 @@ GM.min=function(ct){
         d.dataset.r=r;
         d.dataset.c=c;
         
-        // Desktop click (открытие)
+        // Блокируем контекстное меню (правый клик / долгое нажатие на iOS)
+        d.oncontextmenu=function(e){e.preventDefault();return false};
+        
+        // Desktop: левый клик = открыть
         d.onclick=function(){
           var row=parseInt(this.dataset.r);
           var col=parseInt(this.dataset.c);
           op(row,col);
         };
         
-        // Desktop right click (флаг)
-        d.oncontextmenu=function(e){
-          e.preventDefault();
-          var row=parseInt(this.dataset.r);
-          var col=parseInt(this.dataset.c);
-          fg(row,col);
+        // Desktop: правый клик = флаг (дополнительно к oncontextmenu)
+        d.onmousedown=function(e){
+          if(e.button===2){
+            e.preventDefault();
+            var row=parseInt(this.dataset.r);
+            var col=parseInt(this.dataset.c);
+            fg(row,col);
+          }
         };
         
-        // Mobile touch (исправлено: passive:true позволяет сработать click после короткого тапа)
-        var touchTimer;
-        d.addEventListener('touchstart', function(e) {
-          var row=parseInt(this.dataset.r);
-          var col=parseInt(this.dataset.c);
-          touchTimer = setTimeout(function(){
+        // Mobile: обрабатываем тачи сами
+        var touchStartTime=0;
+        var touchMoved=false;
+        var longPressFired=false;
+        var longPressTimer=null;
+        var row=r,col=c;
+        
+        d.addEventListener('touchstart',function(e){
+          e.preventDefault(); // Блокируем выделение текста и контекстное меню
+          touchStartTime=Date.now();
+          touchMoved=false;
+          longPressFired=false;
+          longPressTimer=setTimeout(function(){
+            longPressFired=true;
             fg(row,col);
-          }, 500);
-        }, {passive: true});
+          },500);
+        },{passive:false});
         
-        d.addEventListener('touchend', function(e) {
-          clearTimeout(touchTimer);
+        d.addEventListener('touchmove',function(e){
+          e.preventDefault();
+          touchMoved=true;
+          clearTimeout(longPressTimer);
+        },{passive:false});
+        
+        d.addEventListener('touchend',function(e){
+          e.preventDefault();
+          clearTimeout(longPressTimer);
+          if(!touchMoved && !longPressFired){
+            // Короткий тап без движения = открыть клетку
+            op(row,col);
+          }
+        },{passive:false});
+        
+        d.addEventListener('touchcancel',function(e){
+          clearTimeout(longPressTimer);
         });
-        
-        d.addEventListener('touchmove', function(e) {
-          clearTimeout(touchTimer);
-        }, {passive: true});
         
         be.appendChild(d);
       }
